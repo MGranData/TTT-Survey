@@ -3,8 +3,6 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 import plotly.express as px
-
-# NLP imports
 import nltk
 from wordcloud import WordCloud
 
@@ -66,8 +64,10 @@ def show_text_analysis(df):
     col = st.selectbox("Selecciona columna de texto", text_columns)
     text = " ".join(df[col].dropna().astype(str))
 
-    # Preparar stopwords en español
-    stops = set(stopwords.words('spanish'))
+    # Preparar stopwords en español e inglés
+    stops_es = set(stopwords.words('spanish'))
+    stops_en = set(stopwords.words('english'))
+    stops = stops_es.union(stops_en)
     wordcloud = WordCloud(
         width=800,
         height=400,
