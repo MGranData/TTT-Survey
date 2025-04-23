@@ -2,48 +2,56 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
-from io import StringIO
 import plotly.express as px
 
 # NLP imports
 import nltk
 from wordcloud import WordCloud
 
-# Ensure NLTK data is available
+# Descargar stopwords de NLTK
 nltk.download('stopwords')
 from nltk.corpus import stopwords
 
 # -------------------------
-# Helper functions
+# Funciones auxiliares
 # -------------------------
+
 def load_data(uploaded_file):
     """
-    Carga el archivo CSV o Excel y devuelve un DataFrame.
+    Carga un archivo CSV o Excel y devuelve un DataFrame.
     """
     if uploaded_file.name.endswith('.csv'):
         return pd.read_csv(uploaded_file)
     elif uploaded_file.name.endswith(('.xls', '.xlsx')):
         return pd.read_excel(uploaded_file)
     else:
-        st.error("Formato de archivo no soportado.")
+        st.error("Formato de archivo no soportado. Solo .csv, .xls, .xlsx")
         return None
 
 
 def show_correlation_plotly(df):
+    """
+    Muestra la matriz de correlación usando Plotly para mejor legibilidad.
+    """
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    if len(numeric_cols) < 2:
+        st.warning("No hay suficientes columnas numéricas para calcular correlación.")
+        return
+
     corr = df[numeric_cols].corr()
-    # acortar para hover, no hay wrapping: muestra etiqueta completa al pasar el cursor
-    labels_short = [col if len(col)<20 else col[:17] + '…' for col in numeric_cols]
+    # Etiquetas acortadas para display y full label en hover
+    labels_short = [col if len(col) < 20 else col[:17] + '…' for col in numeric_cols]
 
     fig = px.imshow(
         corr,
-        x=labels_short, y=labels_short,
+        x=labels_short,
+        y=labels_short,
         text_auto=True,
         aspect='equal',
         title="Matriz de Correlación"
     )
-    st.plotly_chart(fig)
+    fig.update_traces(hovertemplate='Variable: %{x}<br>Correlación: %{z:.2f}')
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def show_text_analysis(df):
@@ -58,10 +66,11 @@ def show_text_analysis(df):
     col = st.selectbox("Selecciona columna de texto", text_columns)
     text = " ".join(df[col].dropna().astype(str))
 
-    # Preparar stopwords
+    # Preparar stopwords en español
     stops = set(stopwords.words('spanish'))
     wordcloud = WordCloud(
-        width=800, height=400,
+        width=800,
+        height=400,
         background_color='white',
         stopwords=stops
     ).generate(text)
@@ -77,7 +86,8 @@ def main():
     st.markdown("Sube tu archivo de respuestas para empezar.")
 
     uploaded_file = st.file_uploader(
-        "Selecciona un archivo (.csv, .xls, .xlsx)", type=['csv', 'xls', 'xlsx']
+        "Selecciona un archivo (.csv, .xls, .xlsx)",
+        type=['csv', 'xls', 'xlsx']
     )
 
     if uploaded_file is not None:
@@ -88,7 +98,6 @@ def main():
         st.subheader("Vista previa de datos")
         st.dataframe(df.head())
 
-        # Sidebar para elegir análisis
         st.sidebar.title("Opciones de Análisis")
         analysis = st.sidebar.radio(
             "Selecciona análisis:",
@@ -96,8 +105,8 @@ def main():
         )
 
         if analysis == "Correlación":
-            st.subheader("Matriz de Correlación")
-            show_correlation(df)
+            st.subheader("Matriz de Correlación Interactiva")
+            show_correlation_plotly(df)
         else:
             st.subheader("Análisis de Texto Abierto")
             show_text_analysis(df)
