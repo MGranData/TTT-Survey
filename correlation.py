@@ -16,14 +16,14 @@ from nltk.corpus import stopwords
 
 def load_data(uploaded_file):
     """
-    Carga un archivo CSV o Excel y devuelve un DataFrame.
+    Load a CSV or Excel file and return a DataFrame.
     """
     if uploaded_file.name.endswith('.csv'):
         return pd.read_csv(uploaded_file)
     elif uploaded_file.name.endswith(('.xls', '.xlsx')):
         return pd.read_excel(uploaded_file)
     else:
-        st.error("Formato de archivo no soportado. Solo .csv, .xls, .xlsx")
+        st.error("Unsupported file format. Only .csv, .xls, .xlsx are supported.")
         return None
 
 
@@ -33,7 +33,7 @@ def show_correlation_plotly(df):
     """
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
     if len(numeric_cols) < 2:
-        st.warning("No hay suficientes columnas numéricas para calcular correlación.")
+        st.warning("Not enough numeric columns to calculate correlation.")
         return
 
     corr = df[numeric_cols].corr()
@@ -46,7 +46,7 @@ def show_correlation_plotly(df):
         y=labels_short,
         text_auto=True,
         aspect='equal',
-        title="Matriz de Correlación"
+        title="Correlation matrix"
     )
     fig.update_traces(hovertemplate='Variable: %{x}<br>Correlación: %{z:.2f}')
     st.plotly_chart(fig, use_container_width=True)
@@ -58,10 +58,10 @@ def show_text_analysis(df):
     """
     text_columns = df.select_dtypes(include=['object']).columns.tolist()
     if not text_columns:
-        st.warning("No hay columnas de texto para analizar.")
+        st.warning("There are no text columns to analyze.")
         return
 
-    col = st.selectbox("Selecciona columna de texto", text_columns)
+    col = st.selectbox("Select a text column", text_columns)
     text = " ".join(df[col].dropna().astype(str))
 
     # Preparar stopwords en español e inglés
@@ -83,11 +83,11 @@ def show_text_analysis(df):
 # -------------------------
 
 def main():
-    st.title("Análisis de Encuesta: Correlación & Texto Abierto")
-    st.markdown("Sube tu archivo de respuestas para empezar.")
+    st.title("Survey Analysis: Correlation & Open Text")
+    st.markdown("Upload your answer file to begin.")
 
     uploaded_file = st.file_uploader(
-        "Selecciona un archivo (.csv, .xls, .xlsx)",
+        "Select a file (.csv, .xls, .xlsx)",
         type=['csv', 'xls', 'xlsx']
     )
 
@@ -96,20 +96,20 @@ def main():
         if df is None:
             return
 
-        st.subheader("Vista previa de datos")
+        st.subheader("Data preview")
         st.dataframe(df.head())
 
-        st.sidebar.title("Opciones de Análisis")
+        st.sidebar.title("Analysis options")
         analysis = st.sidebar.radio(
-            "Selecciona análisis:",
-            ("Correlación", "Texto Abierto")
+            "Select analysisis:",
+            ("Correlation", "Open Text")
         )
 
-        if analysis == "Correlación":
-            st.subheader("Matriz de Correlación Interactiva")
+        if analysis == "Correlation":
+            st.subheader("Interactive Correlation Matrix")
             show_correlation_plotly(df)
         else:
-            st.subheader("Análisis de Texto Abierto")
+            st.subheader("Open Text Analysis")
             show_text_analysis(df)
 
 if __name__ == "__main__":
