@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import re
 from PIL import Image
 import plotly.express as px
+
+# NLP imports
 import nltk
 from wordcloud import WordCloud
 
@@ -16,40 +19,55 @@ from nltk.corpus import stopwords
 
 def load_data(uploaded_file):
     """
-    Load a CSV or Excel file and return a DataFrame.
+    Carga un archivo CSV o Excel y devuelve un DataFrame.
     """
     if uploaded_file.name.endswith('.csv'):
         return pd.read_csv(uploaded_file)
     elif uploaded_file.name.endswith(('.xls', '.xlsx')):
         return pd.read_excel(uploaded_file)
     else:
-        st.error("Unsupported file format. Only .csv, .xls, .xlsx are supported.")
+        st.error("Formato de archivo no soportado. Solo .csv, .xls, .xlsx")
         return None
 
 
 def show_correlation_plotly(df):
     """
-    Muestra la matriz de correlación usando Plotly para mejor legibilidad.
+    Muestra la matriz de correlación usando Plotly para mejor legibilidad
+    y la tabla de preguntas con su número.
     """
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
     if len(numeric_cols) < 2:
-        st.warning("Not enough numeric columns to calculate correlation.")
+        st.warning("No hay suficientes columnas numéricas para calcular correlación.")
         return
 
+    # Obtener matriz de correlación
     corr = df[numeric_cols].corr()
-    # Etiquetas acortadas para display y full label en hover
     labels_short = [col if len(col) < 20 else col[:17] + '…' for col in numeric_cols]
 
+    # Plotly heatmap
     fig = px.imshow(
         corr,
         x=labels_short,
         y=labels_short,
         text_auto=True,
         aspect='equal',
-        title="Correlation matrix"
+        title="Matriz de Correlación"
     )
     fig.update_traces(hovertemplate='Variable: %{x}<br>Correlación: %{z:.2f}')
     st.plotly_chart(fig, use_container_width=True)
+
+    # Tabla de preguntas
+    mapping = []
+    for col in numeric_cols:
+        m = re.match(r"\s*(\d+)\.\s*(.*)", col)
+        if m:
+            num, text = m.group(1), m.group(2)
+        else:
+            num, text = '', col
+        mapping.append({'N': num, 'Question': text})
+    df_q = pd.DataFrame(mapping)
+    st.subheader("Tabla de preguntas")
+    st.table(df_q)
 
 
 def show_text_analysis(df):
@@ -58,16 +76,17 @@ def show_text_analysis(df):
     """
     text_columns = df.select_dtypes(include=['object']).columns.tolist()
     if not text_columns:
-        st.warning("There are no text columns to analyze.")
+        st.warning("No hay columnas de texto para analizar.")
         return
 
-    col = st.selectbox("Select a text column", text_columns)
+    col = st.selectbox("Selecciona columna de texto", text_columns)
     text = " ".join(df[col].dropna().astype(str))
 
-    # Preparar stopwords en español e inglés
+    # Stopwords español + inglés
     stops_es = set(stopwords.words('spanish'))
     stops_en = set(stopwords.words('english'))
     stops = stops_es.union(stops_en)
+
     wordcloud = WordCloud(
         width=800,
         height=400,
@@ -75,7 +94,6 @@ def show_text_analysis(df):
         stopwords=stops
     ).generate(text)
 
-    # Mostrar la nube de palabras usando use_container_width
     st.image(wordcloud.to_array(), use_container_width=True)
 
 # -------------------------
@@ -83,33 +101,33 @@ def show_text_analysis(df):
 # -------------------------
 
 def main():
-    st.title("Survey Analysis: Correlation & Open Text")
-    st.markdown("Upload your answer file to begin.")
+    st.title("Análisis de Encuesta: Correlación & Texto Abierto")
+    st.markdown("Sube tu archivo de respuestas para empezar.")
 
     uploaded_file = st.file_uploader(
-        "Select a file (.csv, .xls, .xlsx)",
+        "Selecciona un archivo (.csv, .xls, .xlsx)",
         type=['csv', 'xls', 'xlsx']
     )
 
-    if uploaded_file is not None:
+    if uploaded_file:
         df = load_data(uploaded_file)
         if df is None:
             return
 
-        st.subheader("Data preview")
+        st.subheader("Vista previa de datos")
         st.dataframe(df.head())
 
-        st.sidebar.title("Analysis options")
+        st.sidebar.title("Opciones de Análisis")
         analysis = st.sidebar.radio(
-            "Select analysisis:",
-            ("Correlation", "Open Text")
+            "Selecciona análisis:",
+            ("Correlación", "Texto Abierto")
         )
 
-        if analysis == "Correlation":
-            st.subheader("Interactive Correlation Matrix")
+        if analysis == "Correlación":
+            st.subheader("Matriz de Correlación Interactiva")
             show_correlation_plotly(df)
         else:
-            st.subheader("Open Text Analysis")
+            st.subheader("Análisis de Texto Abierto")
             show_text_analysis(df)
 
 if __name__ == "__main__":
