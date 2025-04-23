@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import StringIO
+import plotly.express as px
 
 # NLP imports
 import nltk
@@ -29,24 +30,20 @@ def load_data(uploaded_file):
         return None
 
 
-def show_correlation(df):
-    """
-    Muestra la matriz de correlación de variables numéricas.
-    """
+def show_correlation_plotly(df):
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-    if len(numeric_cols) < 2:
-        st.warning("No hay suficientes columnas numéricas para correlación.")
-        return
-
     corr = df[numeric_cols].corr()
-    fig, ax = plt.subplots()
-    cax = ax.matshow(corr, cmap='coolwarm')
-    fig.colorbar(cax)
-    ax.set_xticks(range(len(numeric_cols)))
-    ax.set_yticks(range(len(numeric_cols)))
-    ax.set_xticklabels(numeric_cols, rotation=90)
-    ax.set_yticklabels(numeric_cols)
-    st.pyplot(fig)
+    # acortar para hover, no hay wrapping: muestra etiqueta completa al pasar el cursor
+    labels_short = [col if len(col)<20 else col[:17] + '…' for col in numeric_cols]
+
+    fig = px.imshow(
+        corr,
+        x=labels_short, y=labels_short,
+        text_auto=True,
+        aspect='equal',
+        title="Matriz de Correlación"
+    )
+    st.plotly_chart(fig)
 
 
 def show_text_analysis(df):
