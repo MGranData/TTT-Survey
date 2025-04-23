@@ -75,7 +75,8 @@ def show_text_analysis(df):
         stopwords=stops
     ).generate(text)
 
-    st.image(wordcloud.to_array(), use_column_width=True)
+    # Mostrar la nube de palabras usando use_container_width
+    st.image(wordcloud.to_array(), use_container_width=True)
 
 # -------------------------
 # Main
