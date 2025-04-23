@@ -37,14 +37,15 @@ def show_correlation_plotly(df):
     """
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
     if len(numeric_cols) < 2:
-        st.warning("No hay suficientes columnas numéricas para calcular correlación.")
+        st.warning("No hay suficientes columnas numéricas para calcular la correlación.")
         return
 
     # Obtener matriz de correlación
     corr = df[numeric_cols].corr()
+    # Acortar etiquetas para display y mostrar texto completo en hover
     labels_short = [col if len(col) < 20 else col[:17] + '…' for col in numeric_cols]
 
-    # Plotly heatmap
+    # Heatmap interactivo con Plotly
     fig = px.imshow(
         corr,
         x=labels_short,
@@ -53,10 +54,10 @@ def show_correlation_plotly(df):
         aspect='equal',
         title="Matriz de Correlación"
     )
-    fig.update_traces(hovertemplate='Variable: %{x}<br>Correlación: %{z:.2f}')
+    fig.update_traces(hovertemplate='Pregunta: %{x}<br>Correlación: %{z:.2f}')
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla de preguntas
+    # Construir tabla de preguntas
     mapping = []
     for col in numeric_cols:
         m = re.match(r"\s*(\d+)\.\s*(.*)", col)
@@ -72,7 +73,7 @@ def show_correlation_plotly(df):
 
 def show_text_analysis(df):
     """
-    Genera una nube de palabras de la columna de texto seleccionada.
+    Genera una nube de palabras a partir de la columna de texto seleccionada.
     """
     text_columns = df.select_dtypes(include=['object']).columns.tolist()
     if not text_columns:
@@ -82,7 +83,7 @@ def show_text_analysis(df):
     col = st.selectbox("Selecciona columna de texto", text_columns)
     text = " ".join(df[col].dropna().astype(str))
 
-    # Stopwords español + inglés
+    # Stopwords en español e inglés
     stops_es = set(stopwords.words('spanish'))
     stops_en = set(stopwords.words('english'))
     stops = stops_es.union(stops_en)
@@ -94,6 +95,7 @@ def show_text_analysis(df):
         stopwords=stops
     ).generate(text)
 
+    # Mostrar la nube de palabras usando ancho del contenedor
     st.image(wordcloud.to_array(), use_container_width=True)
 
 # -------------------------
