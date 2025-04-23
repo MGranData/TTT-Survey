@@ -20,52 +20,31 @@ from nltk.corpus import stopwords
 def load_data(uploaded_file):
     """
     Load a CSV or Excel file and return a DataFrame.
-    Supports .csv, .xls, .xlsx
     """
-    try:
-        if uploaded_file.name.endswith('.csv'):
-            # adjust decimal/thousands if needed: decimal=',', thousands='.'
-            return pd.read_csv(uploaded_file)
-        elif uploaded_file.name.endswith(('.xls', '.xlsx')):
-            return pd.read_excel(uploaded_file)
-        else:
-            st.error("Unsupported file format. Only .csv, .xls, .xlsx are supported.")
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-    return None
+    if uploaded_file.name.endswith('.csv'):
+        return pd.read_csv(uploaded_file)
+    elif uploaded_file.name.endswith(('.xls', '.xlsx')):
+        return pd.read_excel(uploaded_file)
+    else:
+        st.error("Unsupported file format. Only .csv, .xls, .xlsx are supported.")
+        return None
 
 
 def show_correlation_plotly(df):
     """
-    Display an interactive correlation matrix using Plotly,
-    allowing the user to select which columns to include.
-    Also display a table mapping question numbers to full text.
+    Display an interactive correlation matrix using Plotly
+    and a table mapping question numbers to their full text.
     """
-    # Clean column names
-    df.columns = df.columns.str.strip()
-
-    # List all columns and detect numeric dtype for defaults
-    all_cols = df.columns.tolist()
-    default_numeric = df.select_dtypes(include=[np.number]).columns.tolist()
-
-    # Let the user select which columns to correlate
-    selected = st.multiselect(
-        "Select columns to include in correlation:",
-        options=all_cols,
-        default=default_numeric,
-        help="Pick at least two numeric columns."
-    )
-
-    if len(selected) < 2:
-        st.warning("Please select at least two columns for correlation.")
+    # Select numeric columns
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    if len(numeric_cols) < 2:
+        st.warning("Not enough numeric columns to compute correlation.")
         return
 
-    # Convert selected columns to numeric, coerce errors
-    temp_df = df[selected].apply(pd.to_numeric, errors='coerce')
-    corr = temp_df.corr()
-
+    # Compute correlation matrix
+    corr = df[numeric_cols].corr()
     # Shorten labels for display, full text on hover
-    labels_short = [col if len(col) < 20 else col[:17] + '…' for col in selected]
+    labels_short = [col if len(col) < 20 else col[:17] + '…' for col in numeric_cols]
 
     # Plot interactive heatmap
     fig = px.imshow(
@@ -81,16 +60,15 @@ def show_correlation_plotly(df):
 
     # Build question mapping table
     mapping = []
-    for original_col, short_label in zip(selected, labels_short):
-        match = re.match(r"\s*(\d+)\.\s*(.*)", original_col)
+    for col in numeric_cols:
+        match = re.match(r"\s*(\d+)\.\s*(.*)", col)
         if match:
             num, text = match.group(1), match.group(2)
         else:
-            num, text = '', original_col
+            num, text = '', col
         mapping.append({'N': num, 'Question': text})
-    df_q = pd.DataFrame(mapping)
+    df_q = pd.DataFrame(mapping).reset_index(drop=True)
     st.subheader("Questions Table")
-    # display without index
     st.table(df_q)
 
 
@@ -119,7 +97,6 @@ def show_text_analysis(df):
     ).generate(text)
 
     # Display word cloud
-    st.subheader("Word Cloud")
     st.image(wordcloud.to_array(), use_container_width=True)
 
 # -------------------------
@@ -135,28 +112,26 @@ def main():
         type=['csv', 'xls', 'xlsx']
     )
 
-    if uploaded_file is None:
-        return
+    if uploaded_file:
+        df = load_data(uploaded_file)
+        if df is None:
+            return
 
-    df = load_data(uploaded_file)
-    if df is None:
-        return
+        st.subheader("Data Preview")
+        st.dataframe(df.head())
 
-    st.subheader("Data Preview")
-    st.dataframe(df.head())
+        st.sidebar.title("Analysis Options")
+        analysis = st.sidebar.radio(
+            "Select analysis:",
+            ("Correlation", "Open Text")
+        )
 
-    st.sidebar.title("Analysis Options")
-    analysis = st.sidebar.radio(
-        "Select analysis:",
-        ("Correlation", "Open Text")
-    )
-
-    if analysis == "Correlation":
-        st.subheader("Interactive Correlation Matrix")
-        show_correlation_plotly(df)
-    else:
-        st.subheader("Open Text Analysis")
-        show_text_analysis(df)
+        if analysis == "Correlation":
+            st.subheader("Interactive Correlation Matrix")
+            show_correlation_plotly(df)
+        else:
+            st.subheader("Open Text Analysis")
+            show_text_analysis(df)
 
 if __name__ == "__main__":
     main()
